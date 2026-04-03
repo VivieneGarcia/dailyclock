@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@200;300;400;700;800;900&family=Geist+Mono:wght@200;300;400;700;800&family=Space+Mono:wght@400;700&family=JetBrains+Mono:wght@200;300;400;700;800&family=IBM+Plex+Mono:wght@200;300;400;600;700&family=Roboto+Mono:wght@200;300;400;700&family=Outfit:wght@200;300;400;700;800;900&family=Inter:wght@200;300;400;700;800;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:#f5f5f3;--text:#111;--muted:#aaa;
+  --border:rgba(0,0,0,0.08);--btn:rgba(0,0,0,0.05);--btnhov:rgba(0,0,0,0.1);
+  --pill:#111;--pill-text:#fff;--surface:#fff;
+  --scale:1;
+}
+body.dark{
+  --bg:#111;--text:#fff;--muted:#555;
+  --border:rgba(255,255,255,0.08);--btn:rgba(255,255,255,0.06);--btnhov:rgba(255,255,255,0.12);
+  --pill:#fff;--pill-text:#111;--surface:#1a1a1a;
+}
+
+html,body{height:100%;font-family:'Geist',sans-serif;background:var(--bg);color:var(--text);transition:background .25s,color .25s;overflow:hidden;}
+#app{display:flex;flex-direction:column;height:100vh;position:relative;}
+
+nav{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid var(--border);flex-shrink:0;position:relative;z-index:5;opacity:0;transition:opacity .5s ease;}
+.tabs{display:flex;gap:2px;background:var(--btn);border-radius:10px;padding:3px;}
+.tab{background:none;border:none;color:var(--muted);font-family:'Geist',sans-serif;font-size:13px;font-weight:400;padding:6px 16px;border-radius:7px;cursor:pointer;transition:all .15s;}
+.tab.on{background:var(--pill);color:var(--pill-text);}
+.nav-r{display:flex;gap:6px;align-items:center;}
+.ibtn{background:none;border:none;color:var(--muted);cursor:pointer;width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;transition:background .12s,color .12s;}
+.ibtn:hover{background:var(--btnhov);color:var(--text);}
+.ibtn.on{color:#22c55e;}
+.ibtn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+
+main{flex:1;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;}
+.pane{display:flex;flex-direction:column;align-items:center;justify-content:center;}
+
+/* ── CLOCK ── */
+.time-outer{display:flex;align-items:flex-end;gap:8px;}
+.big{font-weight:800;font-size:clamp(40px,calc(17vw * var(--scale)),calc(190px * var(--scale)));letter-spacing:-.03em;line-height:1;color:var(--text);user-select:none;transition:color .25s;font-variant-numeric:tabular-nums;font-feature-settings:"tnum";}
+.colon{opacity:1;animation:blink 1s step-end infinite;}
+.colon.still{animation:none;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.18}}
+
+/* suffix column: AM/PM on top, seconds on bottom */
+.suffix-col{
+  display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-end;
+  padding-bottom:8px; /* sits on baseline of big time */
+  gap:4px;
+}
+.ampm-badge{
+  font-size:clamp(10px,calc(2.2vw * var(--scale)),calc(26px * var(--scale)));font-weight:700;
+  opacity:.5;letter-spacing:.05em;
+  font-family:'Geist',sans-serif;line-height:1;
+}
+.sec-badge{
+  font-size:clamp(12px,calc(3vw * var(--scale)),calc(38px * var(--scale)));font-weight:800;
+  opacity:.55;letter-spacing:-.02em;line-height:1;color:var(--text);
+  font-variant-numeric:tabular-nums;font-feature-settings:"tnum";
+}
+.sec-unit{
+  font-size:clamp(8px,1vw,12px);font-weight:400;
+  color:var(--muted);letter-spacing:.07em;text-transform:uppercase;
+  font-family:'Geist',sans-serif;display:block;margin-top:1px;
+}
+
+.sub{font-size:12px;font-weight:400;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-top:14px;}
+.bar-wrap{width:min(320px,60vw);margin-top:24px;}
+.bar-track{height:1.5px;background:var(--border);}
+.bar-fill{height:1.5px;background:var(--text);opacity:.2;transition:width .12s linear;}
+.bar-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);font-family:'Geist Mono',monospace;margin-top:5px;opacity:.4;}
+
+/* ── TIMER ── */
+.t-row{display:flex;align-items:center;}
+.t-seg{display:flex;flex-direction:column;align-items:center;gap:8px;}
+.t-inp{font-weight:800;font-size:clamp(40px,calc(17vw * var(--scale)),calc(190px * var(--scale)));background:none;border:none;outline:none;color:var(--text);width:2.05ch;text-align:center;letter-spacing:-.03em;line-height:1;padding:0;-moz-appearance:textfield;caret-color:transparent;font-variant-numeric:tabular-nums;font-feature-settings:"tnum";}
+.t-inp::-webkit-inner-spin-button,.t-inp::-webkit-outer-spin-button{-webkit-appearance:none;}
+.t-lbl{font-size:10px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;font-weight:400;font-family:'Geist',sans-serif;}
+.t-col{font-weight:800;font-size:clamp(40px,calc(17vw * var(--scale)),calc(190px * var(--scale)));color:var(--text);opacity:.15;line-height:1;padding:0 2px;transform:translateY(-6px);font-variant-numeric:tabular-nums;font-feature-settings:"tnum";}
+.t-num{font-weight:800;font-size:clamp(40px,calc(17vw * var(--scale)),calc(190px * var(--scale)));letter-spacing:-.03em;line-height:1;color:var(--text);min-width:2.05ch;text-align:center;font-variant-numeric:tabular-nums;font-feature-settings:"tnum";}
+.presets{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:22px;}
+.preset{background:var(--btn);border:1px solid var(--border);color:var(--muted);font-family:'Geist',sans-serif;font-size:12px;font-weight:400;padding:5px 14px;border-radius:100px;cursor:pointer;transition:all .12s;}
+.preset:hover{background:var(--btnhov);color:var(--text);}
+
+.ctrls{display:flex;gap:10px;align-items:center;margin-top:28px;}
+.cbtn{background:var(--btn);border:1px solid var(--border);color:var(--text);font-family:'Geist',sans-serif;font-size:13px;font-weight:400;padding:10px 26px;border-radius:100px;cursor:pointer;transition:all .12s;min-width:84px;}
+.cbtn:hover{background:var(--btnhov);}
+.cbtn.prim{background:var(--pill);color:var(--pill-text);border-color:transparent;min-width:92px;}
+.cbtn.prim:hover{opacity:.82;}
+
+/* ── STOPWATCH ── */
+.sw-big{font-weight:800;font-size:clamp(40px,calc(17vw * var(--scale)),calc(190px * var(--scale)));letter-spacing:-.03em;line-height:1;color:var(--text);user-select:none;font-variant-numeric:tabular-nums;font-feature-settings:"tnum";}
+.sw-cs{font-size:.28em;font-weight:700;opacity:.25;}
+.laps{max-height:120px;overflow-y:auto;width:min(340px,72vw);margin-top:22px;}
+.laps::-webkit-scrollbar{width:0;}
+.lap-item{display:flex;justify-content:space-between;font-size:12px;font-family:'Geist Mono',monospace;color:var(--muted);padding:6px 0;border-bottom:1px solid var(--border);}
+.lap-item:first-child{color:var(--text);}
+.lap-n{opacity:.4;}
+
+/* ── RING ── */
+.ring-wrap{position:absolute;opacity:0;pointer-events:none;transition:opacity .3s;display:flex;align-items:center;justify-content:center;}
+.ring-wrap.vis{opacity:1;}
+#rsvg{transform:rotate(-90deg);}
+
+/* ── SETTINGS DRAWER ── */
+.drawer-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,0);z-index:30;
+  pointer-events:none;transition:background .25s;
+}
+.drawer-overlay.open{background:rgba(0,0,0,0.18);pointer-events:all;}
+
+.drawer{
+  position:fixed;top:0;right:0;bottom:0;
+  width:320px;max-width:90vw;
+  background:var(--surface);
+  border-left:1px solid var(--border);
+  display:flex;flex-direction:column;
+  transform:translateX(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);
+  z-index:31;
+  box-shadow:-8px 0 32px rgba(0,0,0,0.08);
+}
+.drawer.open{transform:translateX(0);}
+
+.drawer-hdr{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:20px 20px 0;flex-shrink:0;
+}
+.drawer-title{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:400;}
+.drawer-body{flex:1;overflow-y:auto;padding:18px 20px 28px;display:flex;flex-direction:column;}
+.drawer-body::-webkit-scrollbar{width:4px;}
+.drawer-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+
+.sgrp{border-bottom:1px solid var(--border);padding:16px 0;}
+.sgrp:first-child{padding-top:0;}
+.sgrp:last-child{border-bottom:none;}
+.srow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:5px 0;}
+.slbl{font-size:13.5px;color:var(--text);font-weight:400;flex:1;}
+.shint{font-size:11px;color:var(--muted);margin-top:1px;}
+.seclbl{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:400;margin-bottom:12px;}
+
+.tog{width:40px;height:22px;background:var(--btn);border:1px solid var(--border);border-radius:100px;position:relative;cursor:pointer;transition:background .18s;flex-shrink:0;}
+.tog.on{background:var(--pill);border-color:var(--pill);}
+.tog::after{content:'';position:absolute;width:15px;height:15px;background:#fff;border-radius:50%;top:3px;left:3px;transition:transform .18s;box-shadow:0 1px 3px rgba(0,0,0,.15);}
+body.dark .tog::after{background:#333;}
+.tog.on::after{transform:translateX(18px);}
+body.dark .tog.on::after{background:var(--bg);}
+
+.segc{display:flex;background:var(--btn);border-radius:7px;padding:2px;gap:2px;}
+.segb{background:none;border:none;color:var(--muted);font-family:'Geist',sans-serif;font-size:11.5px;font-weight:400;padding:4px 10px;border-radius:5px;cursor:pointer;transition:all .12s;}
+.segb.on{background:var(--bg);color:var(--text);}
+
+.sc-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:8px;}
+.sci{display:flex;align-items:center;justify-content:space-between;font-size:11.5px;color:var(--muted);font-weight:400;}
+.sck{font-family:'Geist Mono',monospace;font-size:10px;background:var(--btn);border:1px solid var(--border);border-radius:5px;padding:2px 7px;color:var(--text);}
+
+/* ── FONT GRID ── */
+.font-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:4px;}
+.font-card{background:var(--btn);border:1px solid var(--border);border-radius:9px;padding:12px 10px 9px;cursor:pointer;transition:all .15s;text-align:center;}
+.font-card:hover{background:var(--btnhov);}
+.font-card.on{border-color:var(--text);}
+.font-preview{font-size:22px;color:var(--text);line-height:1;}
+.font-name{font-size:9.5px;color:var(--muted);margin-top:5px;letter-spacing:.04em;font-family:'Geist',sans-serif;}
+
+/* weight picker */
+.weight-row{display:flex;gap:7px;margin-top:4px;}
+.wbtn{
+  flex:1;background:var(--btn);border:1px solid var(--border);border-radius:9px;
+  padding:10px 6px;cursor:pointer;transition:all .15s;text-align:center;
+  font-family:'Geist',sans-serif;font-size:13px;color:var(--muted);
+}
+.wbtn:hover{background:var(--btnhov);color:var(--text);}
+.wbtn.on{border-color:var(--text);color:var(--text);}
+.wbtn-label{display:block;font-size:9.5px;color:var(--muted);letter-spacing:.04em;margin-top:4px;font-family:'Geist',sans-serif;}
+
+/* ── MODE BUTTONS ── */
+.mode-row{display:flex;gap:7px;margin-bottom:18px;}
+.mode-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;background:var(--btn);border:1px solid var(--border);border-radius:9px;padding:10px;cursor:pointer;transition:all .15s;font-family:'Geist',sans-serif;font-size:12.5px;font-weight:400;color:var(--muted);}
+.mode-btn:hover{background:var(--btnhov);color:var(--text);}
+.mode-btn.on{border-color:var(--text);color:var(--text);}
+.mode-btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;}
+
+
+
+/* ── RESPONSIVE: horizontal scroll nav on small screens ── */
+@media(max-width:600px){
+  nav{
+    overflow-x:auto;overflow-y:hidden;
+    gap:12px;flex-wrap:nowrap;
+    opacity:1!important;
+    padding:12px 16px;
+    scrollbar-width:none;
+    -webkit-overflow-scrolling:touch;
+  }
+  nav::-webkit-scrollbar{display:none;}
+  .tabs{flex-shrink:0;}
+  .nav-r{flex-shrink:0;gap:4px;}
+}
+
+@keyframes flash{0%,100%{opacity:1}50%{opacity:.3}}
+.flash{animation:flash .5s ease 3;}
+</style>
+</head>
+<body>
+<div id="app">
+  <nav>
+    <div class="tabs">
+      <button class="tab on" onclick="go('clock')">Clock</button>
+      <button class="tab" onclick="go('timer')">Timer</button>
+      <button class="tab" onclick="go('stopwatch')">Stopwatch</button>
+    </div>
+    <div class="nav-r">
+      <button class="ibtn" onclick="doFS()" title="Fullscreen (F)">
+        <svg viewBox="0 0 24 24"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+      </button>
+      <button class="ibtn" id="themebtn" onclick="toggleDark()" title="Toggle theme (D)">
+        <svg id="icon-sun" style="display:none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        <svg id="icon-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+      <button class="ibtn" id="wbtn" onclick="doWake()" title="Prevent sleep (W)">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="12" x2="15" y2="15"/></svg>
+      </button>
+      <button class="ibtn" onclick="openS()" title="Settings (S)">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+  </nav>
+
+  <main>
+    <div class="ring-wrap" id="rwrap">
+      <svg id="rsvg" width="380" height="380" viewBox="0 0 380 380">
+        <circle cx="190" cy="190" r="175" fill="none" stroke="var(--border)" stroke-width="1.5"/>
+        <circle id="rfill" cx="190" cy="190" r="175" fill="none" stroke="var(--text)" stroke-width="2" stroke-dasharray="1099.6" stroke-dashoffset="1099.6" opacity=".2" stroke-linecap="round"/>
+      </svg>
+    </div>
+
+    <!-- CLOCK -->
+    <div class="pane" id="pclock">
+      <div class="time-outer">
+        <div class="big" id="ctime"></div>
+        <!-- suffix: AM/PM top, seconds bottom -->
+        <div class="suffix-col" id="suffix-col" style="display:none">
+          <span class="ampm-badge" id="ampm-badge"></span>
+          <span class="sec-badge" id="csec-small" style="display:none"></span>
+        </div>
+        <!-- inline seconds only (no AM/PM suffix col needed separately) -->
+      </div>
+      <div class="sub" id="cdate"></div>
+      <div class="bar-wrap" id="bwrap">
+        <div class="bar-track"><div class="bar-fill" id="bfill" style="width:0%"></div></div>
+        <div class="bar-labels"><span id="bsec">0</span><span>60</span></div>
+      </div>
+    </div>
+
+    <!-- TIMER -->
+    <div class="pane" id="ptimer" style="display:none">
+      <div id="tinput-row" class="t-row">
+        <div class="t-seg"><input class="t-inp" id="th" type="text" inputmode="numeric" maxlength="2" placeholder="00" oninput="fmtInput(this,23)" onfocus="selAll(this)"><span class="t-lbl">hr</span></div>
+        <span class="t-col">:</span>
+        <div class="t-seg"><input class="t-inp" id="tm" type="text" inputmode="numeric" maxlength="2" placeholder="00" oninput="fmtInput(this,59)" onfocus="selAll(this)"><span class="t-lbl">min</span></div>
+        <span class="t-col">:</span>
+        <div class="t-seg"><input class="t-inp" id="ts" type="text" inputmode="numeric" maxlength="2" placeholder="00" oninput="fmtInput(this,59)" onfocus="selAll(this)"><span class="t-lbl">sec</span></div>
+      </div>
+      <div id="trun-row" class="t-row" style="display:none">
+        <div class="t-seg"><div class="t-num" id="rh">00</div><span class="t-lbl">hr</span></div>
+        <span class="t-col">:</span>
+        <div class="t-seg"><div class="t-num" id="rm">00</div><span class="t-lbl">min</span></div>
+        <span class="t-col">:</span>
+        <div class="t-seg"><div class="t-num" id="rs">00</div><span class="t-lbl">sec</span></div>
+      </div>
+      <div class="presets" id="tpresets">
+        <button class="preset" onclick="setp(1)">1 min</button>
+        <button class="preset" onclick="setp(5)">5 min</button>
+        <button class="preset" onclick="setp(10)">10 min</button>
+        <button class="preset" onclick="setp(25)">25 min</button>
+        <button class="preset" onclick="setp(45)">45 min</button>
+        <button class="preset" onclick="setp(60)">1 hr</button>
+      </div>
+      <div class="ctrls">
+        <button class="cbtn" onclick="treset()">Reset</button>
+        <button class="cbtn prim" id="tpbtn" onclick="ttoggle()">Start</button>
+      </div>
+    </div>
+
+    <!-- STOPWATCH -->
+    <div class="pane" id="psw" style="display:none">
+      <div class="sw-big" id="swdisp">00:00<span class="sw-cs">.00</span></div>
+      <div class="ctrls">
+        <button class="cbtn" id="lapbtn" onclick="doLap()" style="display:none">Lap</button>
+        <button class="cbtn prim" id="swpbtn" onclick="swtoggle()">Start</button>
+        <button class="cbtn" id="swrbtn" onclick="swreset()" style="display:none">Reset</button>
+      </div>
+      <div class="laps" id="laps"></div>
+    </div>
+  </main>
+
+  <!-- DRAWER OVERLAY -->
+  <div class="drawer-overlay" id="drawer-overlay" onclick="closeS()"></div>
+
+  <!-- SETTINGS DRAWER -->
+  <div class="drawer" id="drawer">
+    <div class="drawer-hdr">
+      <span class="drawer-title">Settings</span>
+      <button class="ibtn" onclick="closeS()">
+        <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="drawer-body">
+
+      <!-- APPEARANCE -->
+      <div class="sgrp">
+        <div class="seclbl">Appearance</div>
+        <div class="mode-row">
+          <button class="mode-btn on" id="mode-light" onclick="applyDark(false)">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+            Light
+          </button>
+          <button class="mode-btn" id="mode-dark" onclick="applyDark(true)">
+            <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            Dark
+          </button>
+        </div>
+
+
+      </div>
+
+      <!-- FONT -->
+      <div class="sgrp">
+        <div class="seclbl">Font</div>
+        <div class="font-grid" id="font-grid"></div>
+        <div style="margin-top:14px;">
+          <div class="seclbl">Weight</div>
+          <div class="weight-row" id="weight-row"></div>
+        </div>
+      </div>
+      <!-- CLOCK -->
+      <div class="sgrp">
+        <div class="seclbl">Clock</div>
+        <div class="srow">
+          <span class="slbl">24-hour format</span>
+          <div class="tog" id="t24" onclick="togset('h24','t24')"></div>
+        </div>
+        <div class="srow">
+          <div>
+            <div class="slbl">Seconds</div>
+            <div class="shint">How to show seconds</div>
+          </div>
+          <div class="segc" id="sec-style-ctrl">
+            <button class="segb on" onclick="setSecStyle('inline',this)">Inline</button>
+            <button class="segb" onclick="setSecStyle('small',this)">Small</button>
+            <button class="segb" onclick="setSecStyle('off',this)">Off</button>
+          </div>
+        </div>
+        <div class="srow">
+          <span class="slbl">Blinking colon</span>
+          <div class="tog on" id="tblink" onclick="togset('blink','tblink')"></div>
+        </div>
+      </div>
+
+      <!-- DISPLAY -->
+      <div class="sgrp">
+        <div class="seclbl">Display</div>
+          <div class="srow">
+            <div>
+              <div class="slbl">Text size</div>
+              <div class="shint">Scale the clock display</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+              <span style="font-size:11px;color:var(--muted);font-family:'Geist Mono',monospace;" id="scale-val">100%</span>
+            </div>
+          </div>
+          <input type="range" id="scale-slider" min="40" max="150" value="100" step="5"
+            style="width:100%;margin:2px 0 8px;accent-color:var(--text);"
+            oninput="setScale(this.value)">
+        <div class="srow">
+          <span class="slbl">Show date</span>
+          <div class="tog on" id="tdate" onclick="togset('date','tdate')"></div>
+        </div>
+        <div class="srow">
+          <span class="slbl">Seconds bar</span>
+          <div class="tog on" id="tbar" onclick="togset('bar','tbar')"></div>
+        </div>
+        <div class="srow">
+          <span class="slbl">Timer ring</span>
+          <div class="tog on" id="tring" onclick="togset('ring','tring')"></div>
+        </div>
+      </div>
+
+      <!-- SHORTCUTS -->
+      <div class="sgrp">
+        <div class="seclbl">Keyboard shortcuts</div>
+        <div class="sc-grid">
+          <div class="sci"><span>Fullscreen</span><span class="sck">F</span></div>
+          <div class="sci"><span>Play / Pause</span><span class="sck">Space</span></div>
+          <div class="sci"><span>Reset</span><span class="sck">R</span></div>
+          <div class="sci"><span>Lap</span><span class="sck">L</span></div>
+          <div class="sci"><span>Clock</span><span class="sck">1</span></div>
+          <div class="sci"><span>Timer</span><span class="sck">2</span></div>
+          <div class="sci"><span>Stopwatch</span><span class="sck">3</span></div>
+          <div class="sci"><span>Settings</span><span class="sck">S</span></div>
+          <div class="sci"><span>Theme</span><span class="sck">D</span></div>
+          <div class="sci"><span>Prevent sleep</span><span class="sck">W</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const cfg={h24:false,blink:true,date:true,bar:true,ring:true,secStyle:'inline'};
+let cur='clock',isDark=false,activeFont=0,activeWeight=3;
+
+const WEIGHTS=[
+  {label:'Thin',    preview:'Aa', w:200},
+  {label:'Light',   preview:'Aa', w:300},
+  {label:'Regular', preview:'Aa', w:400},
+  {label:'Bold',    preview:'Aa', w:700},
+  {label:'Black',   preview:'Aa', w:900},
+];
+const p2=n=>String(n).padStart(2,'0');
+const $=id=>document.getElementById(id);
+
+const FONTS=[
+  {label:'Geist Mono', family:"'Geist Mono',monospace"},
+  {label:'JetBrains',  family:"'JetBrains Mono',monospace"},
+  {label:'Space Mono', family:"'Space Mono',monospace"},
+  {label:'IBM Plex',   family:"'IBM Plex Mono',monospace"},
+  {label:'Roboto Mono',family:"'Roboto Mono',monospace"},
+  {label:'Outfit',     family:"'Outfit',sans-serif"},
+  {label:'Inter',      family:"'Inter',sans-serif"},
+];
+
+const PRESET_HUES=[];
+
+/* ── FONTS ── */
+function buildFontGrid(){
+  $('font-grid').innerHTML=FONTS.map((f,i)=>`
+    <div class="font-card${i===activeFont?' on':''}" onclick="setFont(${i})">
+      <div class="font-preview" style="font-family:${f.family};font-weight:${WEIGHTS[activeWeight].w}">00:00</div>
+      <div class="font-name">${f.label}</div>
+    </div>`).join('');
+}
+
+function buildWeightRow(){
+  const f=FONTS[activeFont];
+  $('weight-row').innerHTML=WEIGHTS.map((w,i)=>`
+    <button class="wbtn${i===activeWeight?' on':''}" onclick="setWeight(${i})">
+      <span style="font-family:${f.family};font-weight:${w.w};font-size:18px;line-height:1;color:var(--text)">${w.preview}</span>
+      <span class="wbtn-label">${w.label}</span>
+    </button>`).join('');
+}
+
+function setFont(i){activeFont=i;applyFont();buildFontGrid();buildWeightRow();try{localStorage.setItem('clk-font',i);}catch(e){}}
+function setWeight(i){activeWeight=i;applyFont();buildWeightRow();buildFontGrid();try{localStorage.setItem('clk-weight',i);}catch(e){}}
+
+function applyFont(){
+  const f=FONTS[activeFont].family;
+  const w=WEIGHTS[activeWeight].w;
+  document.querySelectorAll('.big,.sw-big,.t-inp,.t-col,.t-num,.sec-badge').forEach(el=>{
+    el.style.fontFamily=f;
+    el.style.fontWeight=w;
+  });
+}
+
+/* ── DARK ── */
+function applyDark(dark){
+  isDark=dark;document.body.classList.toggle('dark',dark);
+  $('icon-sun').style.display=dark?'':'none';
+  $('icon-moon').style.display=dark?'none':'';
+  $('mode-light').classList.toggle('on',!dark);
+  $('mode-dark').classList.toggle('on',dark);
+  try{localStorage.setItem('clk-dark',dark?'1':'0');}catch(e){}
+}
+function toggleDark(){applyDark(!isDark);}
+
+/* ── SEC STYLE ── */
+function setSecStyle(style,btn){
+  cfg.secStyle=style;
+  document.querySelectorAll('#sec-style-ctrl .segb').forEach(b=>b.classList.remove('on'));
+  if(btn)btn.classList.add('on');
+  saveC();
+}
+
+/* ── RESTORE ── */
+try{
+  const s=JSON.parse(localStorage.getItem('clk-cfg3')||'{}');
+  Object.assign(cfg,s);
+  const map={h24:'t24',blink:'tblink',date:'tdate',bar:'tbar',ring:'tring'};
+  Object.keys(map).forEach(k=>$(map[k]).classList.toggle('on',cfg[k]));
+  const si={'inline':0,'small':1,'off':2}[cfg.secStyle]||0;
+  document.querySelectorAll('#sec-style-ctrl .segb').forEach((b,i)=>b.classList.toggle('on',i===si));
+  isDark=localStorage.getItem('clk-dark')==='1';
+  activeFont=parseInt(localStorage.getItem('clk-font')||'0')||0;
+  activeWeight=parseInt(localStorage.getItem('clk-weight')||'3')||3;
+  const savedScale=localStorage.getItem('clk-scale');
+  if(savedScale)setScale(savedScale);
+}catch(e){}
+
+applyDark(isDark);
+setTimeout(()=>{buildFontGrid();buildWeightRow();applyFont();},60);
+
+function saveC(){try{localStorage.setItem('clk-cfg3',JSON.stringify(cfg));}catch(e){}}
+
+/* ── NAV ── */
+function go(tab){
+  ['clock','timer','stopwatch'].forEach((t,i)=>document.querySelectorAll('.tab')[i].classList.toggle('on',t===tab));
+  $('pclock').style.display=tab==='clock'?'':'none';
+  $('ptimer').style.display=tab==='timer'?'':'none';
+  $('psw').style.display=tab==='stopwatch'?'':'none';
+  $('rwrap').classList.toggle('vis',tab==='timer'&&cfg.ring&&trun);
+  cur=tab;setTimeout(applyFont,0);
+}
+
+/* ── CLOCK ── */
+function tick(){
+  const n=new Date(),h=n.getHours(),m=n.getMinutes(),s=n.getSeconds();
+  let dh=h,ap='';
+  if(!cfg.h24){ap=h>=12?'PM':'AM';dh=h%12||12;}
+
+  const style=cfg.secStyle;
+  const c=`<span class="colon${cfg.blink?'':' still'}">:</span>`;
+
+  // main digits
+  let str=`${p2(dh)}${c}${p2(m)}`;
+  if(style==='inline') str+=`${c}${p2(s)}`;
+  const ctimeEl=$('ctime');
+  ctimeEl.innerHTML=str;
+  ctimeEl.style.fontFamily=FONTS[activeFont].family;
+  ctimeEl.style.fontWeight=WEIGHTS[activeWeight].w;
+
+  // suffix col: shows if 12h mode (AM/PM) OR small seconds OR both
+  const hasAMPM=!cfg.h24;
+  const hasSmall=style==='small';
+  const suffixCol=$('suffix-col');
+
+  if(hasAMPM||hasSmall){
+    suffixCol.style.display='flex';
+    const ampmBadge=$('ampm-badge');
+    ampmBadge.textContent=hasAMPM?ap:'';
+    ampmBadge.style.display=hasAMPM?'':'none';
+
+    const secBadge=$('csec-small');
+    if(hasSmall){
+      secBadge.style.display='';
+      secBadge.textContent=p2(s);
+      secBadge.style.fontFamily=FONTS[activeFont].family;
+      secBadge.style.fontWeight=WEIGHTS[activeWeight].w;
+      // if no AM/PM, push seconds to bottom via margin
+      secBadge.style.marginTop=hasAMPM?'auto':'0';
+    } else {
+      secBadge.style.display='none';
+    }
+  } else {
+    suffixCol.style.display='none';
+  }
+
+  const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  $('cdate').textContent=cfg.date?`${days[n.getDay()]}, ${months[n.getMonth()]} ${n.getDate()}, ${n.getFullYear()}`:'';
+  $('bwrap').style.opacity=cfg.bar?'1':'0';
+  $('bfill').style.width=(s/59*100)+'%';
+  $('bsec').textContent=s;
+}
+setInterval(tick,400);tick();
+
+/* ── TIMER ── */
+let trun=false,trem=0,ttot=0,tiv;
+function fmtInput(el,max){let v=el.value.replace(/\D/g,'');if(parseInt(v)>max)v=String(max);el.value=v;}
+function selAll(el){el.select();}
+function getsecs(){return(parseInt($('th').value)||0)*3600+(parseInt($('tm').value)||0)*60+(parseInt($('ts').value)||0);}
+function setRunDisplay(s){
+  const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;
+  $('rh').textContent=p2(h);$('rm').textContent=p2(m);$('rs').textContent=p2(sec);
+  [$('rh'),$('rm'),$('rs')].forEach(el=>{el.style.fontFamily=FONTS[activeFont].family;el.style.fontWeight=WEIGHTS[activeWeight].w;});
+}
+function showRunMode(on){
+  $('tinput-row').style.display=on?'none':'';
+  $('trun-row').style.display=on?'':'none';
+  $('tpresets').style.display=on?'none':'';
+}
+function setp(m){if(trun)return;$('th').value='';$('tm').value=m<60?m:'';$('ts').value='';if(m>=60)$('th').value=Math.floor(m/60);trem=0;ttot=0;}
+function ttoggle(){
+  if(trun){trun=false;clearInterval(tiv);$('tpbtn').textContent='Resume';return;}
+  if(!trem){trem=getsecs();ttot=trem;if(!trem)return;}
+  trun=true;showRunMode(true);setRunDisplay(trem);
+  $('tpbtn').textContent='Pause';
+  if(cfg.ring)$('rwrap').classList.add('vis');
+  tiv=setInterval(()=>{
+    trem--;setRunDisplay(trem);uring();
+    if(trem<=0){
+      clearInterval(tiv);trun=false;trem=0;ttot=0;
+      $('tpbtn').textContent='Start';$('rwrap').classList.remove('vis');showRunMode(false);
+      $('ptimer').classList.add('flash');setTimeout(()=>$('ptimer').classList.remove('flash'),2500);
+      try{const ctx=new AudioContext(),o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=880;o.type='sine';g.gain.setValueAtTime(0.3,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+1.2);o.start();o.stop(ctx.currentTime+1.2);}catch(e){}
+    }
+  },1000);
+}
+function treset(){clearInterval(tiv);trun=false;trem=0;ttot=0;$('th').value='';$('tm').value='';$('ts').value='';$('tpbtn').textContent='Start';$('rwrap').classList.remove('vis');showRunMode(false);uring();}
+function uring(){const pct=ttot>0?trem/ttot:0;$('rfill').style.strokeDashoffset=1099.6*(1-pct);}
+
+/* ── STOPWATCH ── */
+let swrun=false,swms=0,swlap=0,swiv,lapsArr=[];
+function swtoggle(){
+  if(swrun){swrun=false;clearInterval(swiv);$('swpbtn').textContent='Resume';}
+  else{swrun=true;const base=Date.now()-swms;swiv=setInterval(()=>{swms=Date.now()-base;rendersw();},33);$('swpbtn').textContent='Pause';$('lapbtn').style.display='';$('swrbtn').style.display='';}
+}
+function swreset(){clearInterval(swiv);swrun=false;swms=0;swlap=0;lapsArr=[];$('swpbtn').textContent='Start';$('lapbtn').style.display='none';$('swrbtn').style.display='none';$('swdisp').innerHTML='00:00<span class="sw-cs">.00</span>';$('laps').innerHTML='';}
+function doLap(){if(!swrun)return;const lt=swms-swlap;swlap=swms;lapsArr.unshift({t:swms,l:lt});renderlaps();}
+function fms(ms){
+  const h=Math.floor(ms/3600000),m=Math.floor((ms%3600000)/60000),s=Math.floor((ms%60000)/1000),cs=Math.floor((ms%1000)/10);
+  const hpart=h>0?`${p2(h)}:`:'';
+  return`${hpart}${p2(m)}:${p2(s)}<span class="sw-cs">.${p2(cs)}</span>`;
+}
+function fmsLap(ms){
+  const h=Math.floor(ms/3600000),m=Math.floor((ms%3600000)/60000),s=Math.floor((ms%60000)/1000),cs=Math.floor((ms%1000)/10);
+  return h>0?`${p2(h)}:${p2(m)}:${p2(s)}.${p2(cs)}`:`${p2(m)}:${p2(s)}.${p2(cs)}`;
+}
+function rendersw(){const el=$('swdisp');el.innerHTML=fms(swms);el.style.fontFamily=FONTS[activeFont].family;el.style.fontWeight=WEIGHTS[activeWeight].w;}
+function renderlaps(){$('laps').innerHTML=lapsArr.map((l,i)=>`<div class="lap-item"><span class="lap-n">Lap ${lapsArr.length-i}</span><span>${fmsLap(l.l)}</span></div>`).join('');}
+
+/* ── MOBILE MENU ── */
+
+function togset(k,id){cfg[k]=!cfg[k];$(id).classList.toggle('on',cfg[k]);saveC();}
+function setScale(v){
+  const s=parseInt(v)/100;
+  document.documentElement.style.setProperty('--scale',s);
+  $('scale-val').textContent=v+'%';
+  $('scale-slider').value=v;
+  try{localStorage.setItem('clk-scale',v);}catch(e){}
+}
+function openS(){$('drawer').classList.add('open');$('drawer-overlay').classList.add('open');}
+function closeS(){$('drawer').classList.remove('open');$('drawer-overlay').classList.remove('open');}
+function doFS(){if(!document.fullscreenElement)document.documentElement.requestFullscreen().catch(()=>{});else document.exitFullscreen();}
+
+let wl=null;
+async function doWake(){
+  if(wl){await wl.release();wl=null;$('wbtn').classList.remove('on');}
+  else{try{wl=await navigator.wakeLock.request('screen');$('wbtn').classList.add('on');wl.addEventListener('release',()=>{wl=null;$('wbtn').classList.remove('on');});}catch(e){}}
+}
+
+// ── AUTO-HIDE NAV ──
+let hideTimer;
+const nav=document.querySelector('nav');
+function showNav(){
+  nav.style.opacity='1';
+  clearTimeout(hideTimer);
+  hideTimer=setTimeout(()=>{
+    if(!document.getElementById('drawer').classList.contains('open'))
+      nav.style.opacity='0';
+  },3000);
+}
+document.addEventListener('mousemove',showNav);
+document.addEventListener('mousedown',showNav);
+document.addEventListener('touchstart',showNav,{passive:true});
+// keep visible when drawer is open
+const drawerEl=document.getElementById('drawer');
+const observer=new MutationObserver(()=>{
+  if(drawerEl.classList.contains('open')){clearTimeout(hideTimer);nav.style.opacity='1';}
+  else showNav();
+});
+observer.observe(drawerEl,{attributes:true,attributeFilter:['class']});
+showNav();
+
+document.addEventListener('keydown',e=>{
+  if(['INPUT','TEXTAREA'].includes(e.target.tagName))return;
+  if(e.key==='f'||e.key==='F')doFS();
+  if(e.key==='d'||e.key==='D')toggleDark();
+  if(e.key==='w'||e.key==='W')doWake();
+  if(e.key==='s'||e.key==='S'){$('drawer').classList.contains('open')?closeS():openS();}
+  if(e.key==='1')go('clock');if(e.key==='2')go('timer');if(e.key==='3')go('stopwatch');
+  if(e.key==='Escape')closeS();
+  if(e.key===' '){e.preventDefault();if(cur==='timer')ttoggle();if(cur==='stopwatch')swtoggle();}
+  if((e.key==='r'||e.key==='R')&&cur==='timer')treset();
+  if((e.key==='r'||e.key==='R')&&cur==='stopwatch')swreset();
+  if((e.key==='l'||e.key==='L')&&cur==='stopwatch')doLap();
+});
+</script>
+</body>
+</html>
